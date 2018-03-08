@@ -1,0 +1,45 @@
+<html>
+
+<head>
+	<title>Basic Launchpad example</title>
+</head>
+
+<body>
+
+<script src="../src/launchpad.js"></script>
+
+<script>
+	function onMIDISuccess(midiAccess) {
+		const launchpad = autoDetectLaunchpad(midiAccess);
+
+		// Clear initial launchpad state
+		launchpad.clear();
+
+		// Enable flashing
+		launchpad.enableFlashing();
+
+		// Set all normal LED's to flashing green
+		for (let row = 1; row < 9; row++) {
+			for (let column = 1; column < 10; column++) {
+				launchpad.ledOn(new Pad(row, column), new Color(3, 0, true));
+			}
+		}
+
+		// After 2 seconds, disable flashing
+		setTimeout(() => {
+			launchpad.disableFlashing();
+		}, 2000);
+
+		launchpad.onPadPress(pad => console.log(pad));
+	}
+
+	function onMIDIFailure(msg) {
+		console.log('Failed to get MIDI access - ' + msg);
+	}
+
+	navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
+</script>
+
+</body>
+
+</html>

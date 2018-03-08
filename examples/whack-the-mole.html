@@ -1,0 +1,253 @@
+<html>
+
+<head>
+	<title>Whack the mole - Launchpad edition</title>
+</head>
+
+<style>
+	table {
+		border-collapse: collapse;
+	}
+
+	table td {
+		border: 1px solid black;
+		width: 50px;
+		height: 50px;
+	}
+</style>
+
+<body>
+
+<h1>Whack the mole</h1>
+<p>Refresh the page with your launchpad attached and play a game of whack the mole. Check the console.log for your score.</p>
+
+<table class="fjs-launchpad-table">
+	<tr>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+	</tr>
+	<tr>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+	</tr>
+	<tr>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+	</tr>
+	<tr>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+	</tr>
+	<tr>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+	</tr>
+	<tr>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+	</tr>
+	<tr>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+	</tr>
+	<tr>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+	</tr>
+</table>
+
+<script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+<script src="../src/launchpad.js"></script>
+
+<script>
+	class Game {
+		constructor(launchpad, tableSelector) {
+			this.launchpad = launchpad;
+			this.tableSelector = tableSelector;
+			this.listeners = {
+				onButton: []
+			};
+			this.gameOver = false;
+
+			launchpad.onPadPress(pad => {
+				this.getTableCell(pad.row, pad.column).css('background-color', 'grey');
+				this.listeners.onButton.forEach(callback => callback(pad));
+			});
+
+			launchpad.onPadRelease(pad => {
+				const tableCell = this.getTableCell(pad.row, pad.column);
+				tableCell.css('background-color', tableCell.attr('data-color') || 'white');
+			});
+		}
+
+		getTableCell(row, column) {
+			return $(`${this.tableSelector} tbody`).children(`:nth-child(${row})`).children(`:nth-child(${column})`);
+		}
+
+		colorGreen(pad, dim) {
+			let brightness = 3;
+			if (dim && (dim === 2 || dim === 1)) {
+				brightness = dim;
+			}
+			this.launchpad.ledOn(pad, new Color(brightness, 0));
+			const tableCell = this.getTableCell(pad.row, pad.column);
+			tableCell.attr('data-color', 'green');
+			tableCell.css('background-color', 'green');
+		}
+
+		colorRed(pad) {
+			this.launchpad.ledOn(pad, new Color(0, 3));
+			const tableCell = this.getTableCell(pad.row, pad.column);
+			tableCell.attr('data-color', 'red');
+			tableCell.css('background-color', 'red');
+		}
+
+		colorYellow(pad) {
+			this.launchpad.ledOn(pad, new Color(3, 3));
+			const tableCell = this.getTableCell(pad.row, pad.column);
+			tableCell.attr('data-color', 'yellow');
+			tableCell.css('background-color', 'yellow');
+		}
+
+		padOff(pad) {
+			this.launchpad.ledOff(pad);
+			const tableCell = this.getTableCell(pad.row, pad.column);
+			tableCell.attr('data-color', 'white');
+			tableCell.css('background-color', 'white');
+		}
+
+		getRandomPad() {
+			return new Pad(
+				Math.floor(Math.random() * 8) + 1,
+				Math.floor(Math.random() * 8) + 1
+			);
+		}
+
+		onButton(callback) {
+			this.listeners.onButton.push(callback);
+		}
+
+		setGameOver() {
+			console.log('GAME OVER');
+			this.gameOver = true;
+		}
+	}
+
+	function onMIDISuccess(midiAccess) {
+		console.log('MIDI ready!');
+		const launchpad = autoDetectLaunchpad(midiAccess);
+
+		launchpad.clear();
+
+		initGame(launchpad);
+	}
+
+	function onMIDIFailure(msg) {
+		console.log('Failed to get MIDI access - ' + msg);
+	}
+
+	navigator.requestMIDIAccess().then(onMIDISuccess, onMIDIFailure);
+
+	function initGame(launchpad) {
+		const game = new Game(launchpad, '.fjs-launchpad-table');
+
+		let timeout = 3500;
+		let timeBetween = 1000;
+		let currentPad;
+		let numberOfHits = 0;
+		let speedMultiplier = 0.9;
+		let nextAction, additionalAction;
+
+		function clearActions() {
+			clearTimeout(nextAction);
+			clearTimeout(additionalAction);
+		}
+
+		function gameOver() {
+			game.setGameOver();
+			game.colorRed(currentPad);
+			console.log('Your score is:', numberOfHits);
+		}
+
+		function colorRandomPad() {
+			currentPad = game.getRandomPad();
+			game.colorGreen(currentPad);
+
+			nextAction = setTimeout(gameOver, timeout);
+			additionalAction = setTimeout(() => {
+				game.colorGreen(currentPad, 2);
+			}, (timeout / 2));
+		}
+
+		game.onButton(pad => {
+			clearActions();
+			game.padOff(pad);
+			if (!game.gameOver) {
+				if (pad.equals(currentPad)) {
+					numberOfHits++;
+					speedMultiplier *= 1.002;
+					timeBetween *= speedMultiplier;
+					timeout *= speedMultiplier;
+
+					nextAction = setTimeout(colorRandomPad, timeBetween);
+				} else {
+					gameOver();
+				}
+			}
+		});
+
+		nextAction = setTimeout(colorRandomPad, timeBetween);
+	}
+</script>
+
+</body>
+
+</html>
